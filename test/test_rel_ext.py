@@ -5,7 +5,10 @@ from sklearn.linear_model import LogisticRegression
 import utils
 
 __author__ = "Christopher Potts"
-__version__ = "CS224u, Stanford, Spring 2020"
+__version__ = "CS224u, Stanford, Fall 2020"
+
+
+utils.fix_random_seeds()
 
 
 @pytest.fixture
@@ -84,6 +87,8 @@ def test_experiment(featurizer, vectorize, corpus, kb):
         train_split='tiny_train',
         test_split='tiny_dev',
         featurizers=[featurizer],
+        train_sampling_rate=0.2,
+        test_sampling_rate=0.2,
         vectorize=vectorize,
         verbose=False)
 

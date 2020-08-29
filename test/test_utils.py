@@ -5,7 +5,10 @@ import random
 import utils
 
 __author__ = "Christopher Potts"
-__version__ = "CS224u, Stanford, Spring 2020"
+__version__ = "CS224u, Stanford, Fall 2020"
+
+
+utils.fix_random_seeds()
 
 
 @pytest.mark.parametrize("arg, expected", [
@@ -59,26 +62,57 @@ def test_glove2dict():
     data = utils.glove2dict(src_filename)
     assert len(data) == 400000
 
-@pytest.mark.parametrize("X, n_words, expected", [
+@pytest.mark.parametrize("X, n_words, mincount, expected", [
     [
         [["a", "b", "c"], ["b", "c", "d"]],
         None,
+        1,
         ["$UNK", "a", "b", "c", "d"]
     ],
     [
         [["a", "b", "c"], ["b", "c", "d"]],
         2,
+        1,
         ["$UNK", "b", "c"]
     ],
     [
         [],
         2,
+        1,
         ["$UNK"]
+    ],
+    [
+        [["a", "b", "b"], ["b", "c", "a"]],
+        None,
+        3,
+        ["$UNK", "b"]
+    ],
+    [
+        [["b", "b", "b"], ["b", "a", "a", "c"]],
+        2,
+        3,
+        ["$UNK", "b"]
+    ],
+])
+def test_get_vocab(X, n_words, mincount, expected):
+    result = utils.get_vocab(X, n_words=n_words, mincount=mincount)
+    assert result == expected
+
+
+@pytest.mark.parametrize("lookup, vocab, required_tokens, expected_shape", [
+    [
+        {"a": [1,2]}, ["a", "b"], ["$UNK"], (3,2)
+    ],
+    [
+        {"a": [1,2], "b": [3,4]}, ["b"], ["$UNK"], (2,2)
     ]
 ])
-def test_get_vocab(X, n_words, expected):
-    result = utils.get_vocab(X, n_words=n_words)
-    assert result == expected
+def test_create_pretrained_embedding(lookup, vocab, required_tokens, expected_shape):
+    result, new_vocab = utils.create_pretrained_embedding(lookup, vocab, required_tokens)
+    assert result.shape == expected_shape
+    assert "$UNK" in new_vocab
+    new_vocab.remove("$UNK")
+    assert vocab == new_vocab
 
 
 @pytest.mark.parametrize("set_value", [True, False])
@@ -109,20 +143,4 @@ def test_fix_random_seeds_pytorch(set_value):
     x = torch.rand(1)
     utils.fix_random_seeds(**params)
     y = torch.rand(1)
-    assert (x == y) == set_value
-
-
-@pytest.mark.parametrize("set_value", [True, False])
-def test_fix_random_seeds_tensorflow(set_value):
-    import tensorflow as tf
-    params = dict(
-        seed=42,
-        set_system=False,
-        set_tensorflow=set_value,
-        set_torch=True,
-        set_torch_cudnn=True)
-    utils.fix_random_seeds(**params)
-    x = tf.random.uniform([1]).numpy()
-    utils.fix_random_seeds(**params)
-    y = tf.random.uniform([1]).numpy()
     assert (x == y) == set_value
